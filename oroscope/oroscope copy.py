@@ -1,7 +1,5 @@
-from fastapi import HTTPException
-from pdf_generator.pdf_creator import genera_pdf_da_markdown
-from lang.prompts import get_prompts
 from oroscope.natale_card import calcola_carta_natale
+from lang.prompts import get_prompts
 import openai
 import os
 from dotenv import load_dotenv
@@ -24,7 +22,7 @@ async def genera_oroscopo(data: dict):
         ora_nascita = data["ora_nascita"]
         luogo_nascita = data["luogo_nascita"]
         lingua = data.get("lingua", "it")
-        tipi = data.get("tipi", "generico")  # Tipo singolo, non lista
+        tipi = data.get("tipi", "generico")  # Aggiungi un tipi di oroscopo, default "generico"
 
         # Calcola la carta natale
         carta_natale = calcola_carta_natale(data_nascita, ora_nascita, luogo_nascita)
@@ -50,13 +48,7 @@ async def genera_oroscopo(data: dict):
                 # Aggiungi la risposta per il tipo di oroscopo
                 oroscopi[tipo].append(response.choices[0].message['content'].strip())
 
-        # Genera il PDF con il contenuto dell'oroscopo
-        markdown_content = "\n".join(oroscopi.get('generico', []))  # Combina tutte le risposte generiche
-        pdf_filename = f"oroscopo_{nome}_{data_nascita}.pdf"
-        pdf_path = await genera_pdf_da_markdown(markdown_content, pdf_filename)
-
-        # Restituisci il risultato dell'oroscopo e il link per scaricare il PDF
-        return {"oroscopi": oroscopi, "pdf_path": pdf_path, "testo": markdown_content}
+        return {"oroscopi": oroscopi}
 
     except Exception as e:
         return {"error": str(e)}

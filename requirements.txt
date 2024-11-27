@@ -3,5 +3,6 @@ uvicorn
 openai
 astroquery
 python-dotenv
-flatlib
-skyfield.api
+skyfield
+markdown
+reportlab

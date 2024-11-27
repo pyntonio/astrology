@@ -31,33 +31,35 @@ The project's directory structure is as follows:
 ```
 my_app/
 │
-├── assistants/  
-│   ├── personal_assistant.py  # Manage reminders, to-do lists  
-│   ├── writing_assistant.py  # Creative writing, text generation  
-│   └── language_assistant.py  # Translation, language learning  
+├── oroscope/  
+│   ├── natale_card.py 
+│   └── oroscope.py  
+│     
 │
-├── customer_support/  
-│   ├── automated_chat.py  # Automated customer responses  
-│   └── feedback.py  # Collect and analyze feedback  
+├── lang/  
+│   ├── prompts.py  
+│   └── responses.py   
 │
-├── content_generation/  
-│   ├── social_media.py  # Generate social media content  
-│   └── article_summary.py  # Summarize articles and reports  
+├── pdf_generator/  
+│   └── pdf_creator.py   
+├── models.py    
 │
-├── psychological_support/  
-│   ├── mindfulness.py  # Meditation and well-being exercises  
-│   └── motivation.py  # Motivational messages  
-│
-├── business_tools/  
-│   ├── decision_support.py  # Decision analysis and support  
-│   └── data_analysis.py  # Data synthesis and research  
-│
-├── education_tools/  
-│   ├── lesson_plans.py  # Create lesson plans  
-│   └── quiz_generator.py  # Generate quizzes and exercises  
-│
-└── app.py  # Main interface integrating all modules  
+└── app.py  # Main interface integrating all modules
+
+
+
+
+{
+nome: "Antonio",
+data_nascita: "2024-12-12",
+ora_nascita: "23",
+luogo_nascita: "45.8091199,8.8374398",
+lingua: "it",
+tipi: "generico"
+}
 ```
+
+
 
 ## How to Run the App  
 ```bash
