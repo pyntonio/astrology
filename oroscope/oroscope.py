@@ -1,5 +1,5 @@
 from oroscope.natale_card import calcola_carta_natale
-from lang.prompts import get_prompt
+from lang.prompts import get_prompts
 import openai
 import os
 from dotenv import load_dotenv
@@ -22,22 +22,33 @@ async def genera_oroscopo(data: dict):
         ora_nascita = data["ora_nascita"]
         luogo_nascita = data["luogo_nascita"]
         lingua = data.get("lingua", "it")
+        tipi = data.get("tipi", "generico")  # Aggiungi un tipi di oroscopo, default "generico"
 
         # Calcola la carta natale
         carta_natale = calcola_carta_natale(data_nascita, ora_nascita, luogo_nascita)
 
-        # Crea il prompt con i dati
-        prompt = get_prompt(nome, data_nascita, ora_nascita, luogo_nascita, carta_natale, lingua=lingua)
+        # Ottieni i prompt per i tipi di oroscopo richiesti
+        prompts = get_prompts(nome, data_nascita, ora_nascita, luogo_nascita, carta_natale, lingua=lingua, tipi=tipi)
 
-        # Chiama l'API di OpenAI per ottenere l'oroscopo
-        response = openai.ChatCompletion.create(
-            model="gpt-4o",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=2000,
-            temperature=0.7
-        )
-        return {"oroscopo": response.choices[0].message['content'].strip()}
+        # Creazione della risposta
+        oroscopi = {}
+
+        for tipo, lista_prompt in prompts.items():
+            oroscopi[tipo] = []
+
+            # Esegui la chiamata API per ciascun prompt separatamente
+            for prompt in lista_prompt:
+                response = openai.ChatCompletion.create(
+                    model="gpt-4o",
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=2000,
+                    temperature=0.7
+                )
+
+                # Aggiungi la risposta per il tipo di oroscopo
+                oroscopi[tipo].append(response.choices[0].message['content'].strip())
+
+        return {"oroscopi": oroscopi}
 
     except Exception as e:
         return {"error": str(e)}
-

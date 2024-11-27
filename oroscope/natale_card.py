@@ -3,6 +3,62 @@ from astropy.coordinates import EarthLocation
 import astropy.units as u
 from astropy.time import Time
 
+# Funzione per determinare il segno zodiacale solare
+def determina_segno_zodiacale(gradi_solare):
+    segni = [
+        ("Ariete", 0, 30),
+        ("Toro", 30, 60),
+        ("Gemelli", 60, 90),
+        ("Cancro", 90, 120),
+        ("Leone", 120, 150),
+        ("Vergine", 150, 180),
+        ("Bilancia", 180, 210),
+        ("Scorpione", 210, 240),
+        ("Sagittario", 240, 270),
+        ("Capricorno", 270, 300),
+        ("Acquario", 300, 330),
+        ("Pesci", 330, 360),
+    ]
+    for segno, inizio, fine in segni:
+        if inizio <= gradi_solare < fine:
+            return segno
+    return "Errore"
+
+# Funzione per generare una descrizione astrologica
+def genera_descrizione(segno, tipo):
+    descrizioni = {
+        "Ariete": f"L'{tipo} in Ariete indica energia, determinazione e voglia di agire.",
+        "Toro": f"L'{tipo} in Toro rappresenta stabilità, amore per la bellezza e praticità.",
+        "Gemelli": f"L'{tipo} in Gemelli suggerisce curiosità, comunicazione e versatilità.",
+        "Cancro": f"L'{tipo} in Cancro mostra emotività, protezione e connessione familiare.",
+        "Leone": f"L'{tipo} in Leone riflette leadership, creatività e passione.",
+        "Vergine": f"L'{tipo} in Vergine simboleggia precisione, intelligenza e attenzione al dettaglio.",
+        "Bilancia": f"L'{tipo} in Bilancia parla di equilibrio, armonia e relazioni.",
+        "Scorpione": f"L'{tipo} in Scorpione esprime intensità, trasformazione e mistero.",
+        "Sagittario": f"L'{tipo} in Sagittario indica ottimismo, espansione e ricerca di verità.",
+        "Capricorno": f"L'{tipo} in Capricorno rappresenta ambizione, disciplina e responsabilità.",
+        "Acquario": f"L'{tipo} in Acquario suggerisce innovazione, indipendenza e pensiero originale.",
+        "Pesci": f"L'{tipo} in Pesci mostra sensibilità, immaginazione e spiritualità."
+    }
+    return descrizioni.get(segno, f"Descrizione non disponibile per {segno}.")
+
+# Funzione per calcolare l'ascendente
+def calcola_ascendente(sun_pos, location, birth_time):
+    ts = load.timescale()
+    t = ts.from_astropy(birth_time)
+    
+    # Calcola l'ora siderale locale
+    gmst = t.gmst  # Greenwich Mean Sidereal Time in ore
+    long = location.lon.deg  # Longitudine in gradi
+    lst = (gmst + long / 15) % 24  # Local Sidereal Time in ore
+    
+    # Converti l'ora siderale in gradi
+    lst_degrees = lst * 15  # 360° = 24h, quindi 15° per ogni ora
+    
+    # L'ascendente è calcolato come il grado sull'orizzonte orientale
+    ascendente = (lst_degrees + sun_pos.radec()[0]._degrees) % 360
+    return ascendente
+
 def calcola_carta_natale(data_nascita: str, ora_nascita: str, luogo_nascita: str):
     # Convertire la data e l'ora di nascita in un formato compatibile con Astropy
     birthdate = f"{data_nascita} {ora_nascita}:00"
@@ -14,7 +70,6 @@ def calcola_carta_natale(data_nascita: str, ora_nascita: str, luogo_nascita: str
 
     # Carica i dati planetari con Skyfield (DE421 ephemeris)
     planets = load('de421.bsp')
-    earth = planets['earth']
     sun = planets['sun']
     moon = planets['moon']
     mars = planets['mars']
@@ -43,19 +98,39 @@ def calcola_carta_natale(data_nascita: str, ora_nascita: str, luogo_nascita: str
     
     # Posizioni planetarie (astronomical unit - AU)
     pianeti = {
-        "Sole": sun_pos.radec()[0]._degrees,  # Usa _degrees per ottenere in gradi
-        "Luna": moon_pos.radec()[0]._degrees,  # Usa _degrees per ottenere in gradi
-        "Mercurio": mercury_pos.radec()[0]._degrees,  # Usa _degrees per ottenere in gradi
-        "Venere": venus_pos.radec()[0]._degrees,  # Usa _degrees per ottenere in gradi
-        "Marte": mars_pos.radec()[0]._degrees,  # Usa _degrees per ottenere in gradi
-        "Giove": jupiter_pos.radec()[0]._degrees,  # Usa _degrees per ottenere in gradi
-        "Saturno": saturn_pos.radec()[0]._degrees,  # Usa _degrees per ottenere in gradi
-        "Urano": uranus_pos.radec()[0]._degrees,  # Usa _degrees per ottenere in gradi
-        "Nettuno": neptune_pos.radec()[0]._degrees  # Usa _degrees per ottenere in gradi
+        "Sole": sun_pos.radec()[0]._degrees,
+        "Luna": moon_pos.radec()[0]._degrees,
+        "Mercurio": mercury_pos.radec()[0]._degrees,
+        "Venere": venus_pos.radec()[0]._degrees,
+        "Marte": mars_pos.radec()[0]._degrees,
+        "Giove": jupiter_pos.radec()[0]._degrees,
+        "Saturno": saturn_pos.radec()[0]._degrees,
+        "Urano": uranus_pos.radec()[0]._degrees,
+        "Nettuno": neptune_pos.radec()[0]._degrees
     }
 
-    # Calcolare l'ascendente (approssimazione basata sul Sole)
-    # RA del Sole è ottenuto dalla radec() e convertito in gradi
-    ascendente = (sun_pos.radec()[0]._degrees + 180) % 360  # Usa _degrees per ottenere in gradi
+    # Calcolare il segno zodiacale solare
+    segno_solare = determina_segno_zodiacale(pianeti["Sole"])
 
-    return {"pianeti": pianeti, "ascendente": ascendente}
+    # Calcolare l'ascendente
+    ascendente_gradi = calcola_ascendente(sun_pos, location, birth_time)
+    ascendente_segno = determina_segno_zodiacale(ascendente_gradi)
+
+    # Creare l'output finale
+    output = {
+        "pianeti": pianeti,
+        "segno_solare": {
+            "segno": segno_solare,
+            "descrizione": genera_descrizione(segno_solare, "Sole")
+        },
+        "ascendente": {
+            "gradi": ascendente_gradi,
+            "segno": ascendente_segno,
+            "descrizione": genera_descrizione(ascendente_segno, "Ascendente")
+        }
+    }
+
+    # Debug: Stampa l'output per verifica
+    print("Debug - Output calcola_carta_natale:", output)
+
+    return output
