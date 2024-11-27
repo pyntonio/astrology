@@ -50,12 +50,12 @@ my_app/
 
 
 {
-nome: "Antonio",
-data_nascita: "2024-12-12",
-ora_nascita: "23",
-luogo_nascita: "45.8091199,8.8374398",
-lingua: "it",
-tipi: "generico"
+"nome": "Antonio",
+"data_nascita": "2024-12-12",
+"ora_nascita": "23",
+"luogo_nascita": "45.8091199,8.8374398",
+"lingua": "it",
+"tipi": "generico"
 }
 ```
 
