@@ -80,45 +80,50 @@
     </div>
 
     <script>
-        document.getElementById('submit-button').addEventListener('click', async () => {
-            const form = document.getElementById('oroscopo-form');
-            const formData = new FormData(form);
-            const data = {};
+document.getElementById('submit-button').addEventListener('click', async () => {
+    const form = document.getElementById('oroscopo-form');
+    const formData = new FormData(form);
+    const data = {};
 
-            // Costruisci l'oggetto JSON dai dati del form
-            formData.forEach((value, key) => {
-                data[key] = value;
-            });
+    // Costruisci l'oggetto JSON dai dati del form
+    formData.forEach((value, key) => {
+        data[key] = value;
+    });
 
-            try {
-                // Effettua la richiesta POST alle API
-                const response = await fetch('http://localhost:8000/genera_oroscopo/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(data)
-                });
-
-                const result = await response.json();
-
-                // Mostra il risultato nel frontend
-                const responseContainer = document.getElementById('response-container');
-                responseContainer.style.display = 'block';
-
-                const responseText = document.getElementById('response-text');
-                if (response.ok) {
-                    responseText.textContent = result.oroscopi.generico.join("\n\n");
-                    const downloadLink = document.getElementById('download-link');
-                    downloadLink.style.display = 'inline-block';
-                    downloadLink.href = `http://localhost:8000/download_oroscopo/${result.pdf_filename}`;
-                } else {
-                    responseText.textContent = `Errore: ${result.detail}`;
-                }
-            } catch (error) {
-                alert(`Si è verificato un errore: ${error.message}`);
-            }
+    try {
+        // Effettua la richiesta POST alle API
+        const response = await fetch('http://localhost:8000/genera_oroscopo/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
         });
+
+        const result = await response.json();
+
+        console.log(result); // Log per vedere la risposta
+
+        // Mostra il risultato nel frontend
+        const responseContainer = document.getElementById('response-container');
+        responseContainer.style.display = 'block';
+
+        const responseText = document.getElementById('response-text');
+        if (response.ok) {
+            // Mostra il testo dell'oroscopo
+            responseText.textContent = result.oroscopo_text;
+
+            const downloadLink = document.getElementById('download-link');
+            downloadLink.style.display = 'inline-block';
+            downloadLink.href = `http://localhost:8000/download_oroscopo/${result.pdf_filename}`;
+        } else {
+            responseText.textContent = `Errore: ${result.message || "Sconosciuto"}`;
+        }
+    } catch (error) {
+        alert(`Si è verificato un errore: ${error.message}`);
+    }
+});
+
     </script>
 </body>
 </html>
