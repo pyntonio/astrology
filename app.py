@@ -3,9 +3,17 @@ from fastapi.responses import FileResponse
 from oroscope.oroscope import genera_oroscopo
 import os
 from models import OroscopoRequest  # Importa il modello che hai creato
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Sostituisci con il dominio del frontend in produzione
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Endpoint per generare l'oroscopo
 @app.post("/genera_oroscopo/") 
