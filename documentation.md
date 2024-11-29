@@ -1238,3 +1238,124 @@ Questa struttura ti permette di costruire un'applicazione scalabile, sicura e fu
   - **`smtplib`**: Per inviare email di conferma.
 
 Questa documentazione offre una panoramica completa delle funzionalità e della loro implementazione, oltre a fornire dettagli tecnici per ogni endpoint e componente.
+
+
+
+**Alembic** è uno strumento per la gestione delle migrazioni del database, utilizzato insieme a **SQLAlchemy**, il toolkit ORM (Object-Relational Mapping) di Python. Serve a tenere traccia e gestire i cambiamenti nella struttura del database (schema), come l'aggiunta di tabelle, colonne o modifiche ai tipi di dati.
+
+---
+
+### **Perché Usare Alembic?**
+Quando il tuo progetto cresce, la struttura del database cambia frequentemente per supportare nuove funzionalità. Alembic facilita il processo di:
+
+1. **Gestione delle Migrazioni**: Tiene traccia di tutte le modifiche apportate al database nel tempo.
+2. **Automazione**: Genera automaticamente gli script SQL necessari per aggiornare il database.
+3. **Rollback Sicuri**: Ti consente di tornare indietro a una versione precedente dello schema se qualcosa va storto.
+4. **Compatibilità in Team**: Garantisce che tutti i membri del team abbiano la stessa versione del database senza dover eseguire manualmente script SQL.
+
+---
+
+### **Caratteristiche Principali**
+1. **Integrazione con SQLAlchemy**: Può leggere direttamente i modelli definiti in SQLAlchemy.
+2. **Versionamento dello Schema**: Ogni modifica allo schema viene salvata come una "revisione" con un identificatore univoco.
+3. **Migrazioni Incrementali**: Applica modifiche passo dopo passo per aggiornare il database.
+4. **Supporto Multi-Database**: Funziona con vari database come MySQL, PostgreSQL, SQLite, ecc.
+
+---
+
+### **Quando Serve Alembic?**
+- **In ambienti di produzione**: Quando è necessario aggiornare un database senza perdere dati.
+- **In team di sviluppo**: Per sincronizzare automaticamente le modifiche al database.
+- **Progetti in crescita**: Per gestire cambiamenti complessi allo schema senza difficoltà.
+
+---
+
+### **Come Funziona Alembic?**
+1. **Setup del Progetto**: Inizializzi Alembic nel progetto.
+2. **Creazione delle Migrazioni**: Ogni volta che cambia lo schema (es. aggiunta di una colonna), crei una migrazione.
+3. **Applicazione delle Migrazioni**: Aggiorni il database eseguendo le migrazioni.
+
+---
+
+### **Setup di Base**
+
+#### 1. **Installazione**
+Installa Alembic con pip:
+```bash
+pip install alembic
+```
+
+#### 2. **Inizializzazione**
+Inizializza un nuovo progetto Alembic nella tua applicazione:
+```bash
+alembic init alembic
+```
+Questo comando crea una directory chiamata `alembic/` con i file di configurazione.
+
+#### 3. **Configurazione**
+Nel file `alembic.ini`, specifica l'URL del database:
+```ini
+sqlalchemy.url = mysql+pymysql://username:password@localhost/dbname
+```
+
+#### 4. **Generazione di una Migrazione**
+Quando cambi il modello SQLAlchemy (es. aggiunta di una colonna), genera una migrazione:
+```bash
+alembic revision --autogenerate -m "Aggiunta campo is_verified"
+```
+Il flag `--autogenerate` consente ad Alembic di rilevare automaticamente le modifiche nei modelli.
+
+#### 5. **Applicazione delle Migrazioni**
+Per applicare le migrazioni al database:
+```bash
+alembic upgrade head
+```
+Questo aggiorna il database all'ultima revisione.
+
+---
+
+### **Esempio**
+#### Modifica del Modello
+Aggiungiamo il campo `is_verified` al modello `User`:
+```python
+from sqlalchemy import Boolean, Column
+
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True)
+    username = Column(String(255), nullable=False)
+    is_verified = Column(Boolean, default=False)
+```
+
+#### Generazione della Migrazione
+Dopo aver modificato il modello, generiamo la migrazione:
+```bash
+alembic revision --autogenerate -m "Aggiunta is_verified"
+```
+
+Alembic crea un file come questo in `alembic/versions/`:
+```python
+def upgrade():
+    op.add_column('users', sa.Column('is_verified', sa.Boolean(), nullable=True))
+
+def downgrade():
+    op.drop_column('users', 'is_verified')
+```
+
+#### Applicazione della Migrazione
+Esegui la migrazione per aggiornare il database:
+```bash
+alembic upgrade head
+```
+
+---
+
+### **Vantaggi di Usare Alembic**
+1. **Evitare Errori Manuali**: Non devi scrivere a mano script SQL per modifiche al database.
+2. **Compatibilità Multiambiente**: Funziona bene sia in sviluppo che in produzione.
+3. **Rollback Facile**: Se un aggiornamento causa problemi, puoi facilmente annullare le modifiche.
+
+---
+
+### **Conclusione**
+Alembic è un tool indispensabile per progetti che richiedono una gestione strutturata e sicura delle migrazioni di database. Ti permette di concentrarti sullo sviluppo delle funzionalità senza preoccuparti degli aggiornamenti manuali dello schema del database. Se vuoi implementarlo nel tuo progetto, posso aiutarti!

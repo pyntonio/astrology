@@ -1,19 +1,17 @@
 from pydantic import BaseModel
 from typing import Optional
-from sqlalchemy import Column, Integer, String, ForeignKey, Date, Text, TIMESTAMP, DateTime, Boolean
+from sqlalchemy import Column, Integer, String, ForeignKey, Date, Enum, Text, DECIMAL, TIMESTAMP, DateTime, Boolean
 from sqlalchemy.orm import relationship
 from db_config.db_config import Base
 from sqlalchemy.sql import func
 
 class OroscopoRequest(BaseModel):
-    user_id: int  # Aggiungi il campo user_id per l'utente
     nome: str
     data_nascita: str  # Ad esempio, '1990-01-01'
     ora_nascita: str   # Ad esempio, '15:30'
     luogo_nascita: str # Ad esempio, '45.07, 7.68' (latitudine e longitudine)
     lingua: Optional[str] = "it"  # Linguaggio opzionale, di default "it"
     tipi: Optional[str] = "generico"  # Tipo di oroscopo, di default "generico"
-
 
 
 class User(Base):
@@ -26,7 +24,6 @@ class User(Base):
     updated_at = Column(DateTime, default=func.current_timestamp(), onupdate=func.current_timestamp(), nullable=False)
     is_verified = Column(Boolean, default=False)  # Aggiungi il campo is_verified
     horoscopes = relationship("Horoscope", back_populates="user")
-    monthly_horoscopes = relationship("MonthlyHoroscope", back_populates="user")
 
 
 class Horoscope(Base):
@@ -61,16 +58,14 @@ class GenericHoroscope(Base):
     # Relazione con l'utente
     user = relationship("User", back_populates="horoscopes")
     # Relazione con i dettagli astrologici
-    astrological_details = relationship("AstrologicalDetails", back_populates="generic_horoscope")
-
+    astrological_details = relationship("AstrologicalDetails", back_populates="horoscope")
 
 # Modello per i dettagli astrologici
 class AstrologicalDetails(Base):
     __tablename__ = 'astrological_details'
 
     id = Column(Integer, primary_key=True, index=True)
-    horoscope_id = Column(Integer, ForeignKey("generic_horoscopes.id"), nullable=True)
-    monthly_horoscope_id = Column(Integer, ForeignKey("monthly_horoscopes.id"), nullable=True)
+    horoscope_id = Column(Integer, ForeignKey("generic_horoscopes.id"))
     mercury = Column(String)
     venus = Column(String)
     mars = Column(String)
@@ -79,11 +74,8 @@ class AstrologicalDetails(Base):
     neptune = Column(String)
     uranus = Column(String)
 
-    # Relazione con l'oroscopo generico
-    generic_horoscope = relationship("GenericHoroscope", back_populates="astrological_details")
-    # Relazione con l'oroscopo mensile
-    monthly_horoscope = relationship("MonthlyHoroscope", back_populates="astrological_details")
-
+    # Relazione con l'oroscopo
+    horoscope = relationship("GenericHoroscope", back_populates="astrological_details")
 
 # Modello per la generazione dell'oroscopo
 class HoroscopeGeneration(Base):
@@ -95,7 +87,6 @@ class HoroscopeGeneration(Base):
 
     # Relazione con l'utente
     user = relationship("User")
-
 
 # Modello per l'oroscopo mensile
 class MonthlyHoroscope(Base):
@@ -116,4 +107,5 @@ class MonthlyHoroscope(Base):
     # Relazione con i dettagli astrologici
     astrological_details = relationship("AstrologicalDetails", back_populates="monthly_horoscope")
 
-
+# Aggiungere la relazione nel modello User
+User.monthly_horoscopes = relationship("MonthlyHoroscope", back_populates="user")

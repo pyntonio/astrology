@@ -50,8 +50,9 @@ my_app/
 
 
 {
+"user_id": "21",
 "nome": "Antonio",
-"data_nascita": "2024-12-12",
+"data_nascita": "1983-12-12",
 "ora_nascita": "23:00",
 "luogo_nascita": "45.8091199,8.8374398",
 "lingua": "it",
