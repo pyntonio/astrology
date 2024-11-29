@@ -1042,3 +1042,199 @@ Abbiamo creato un sistema che:
  utenti e gli oroscopi.
 
 Questa struttura ti permette di costruire un'applicazione scalabile, sicura e funzionale che integra sia la gestione degli utenti che la creazione di oroscopi personalizzati.
+
+
+
+
+
+
+
+### **Documentazione Dettagliata delle Nuove Funzionalità**
+
+---
+
+### 1. **Registrazione Utente**
+- **Endpoint**: `/register/`
+- **Metodo**: `POST`
+- **Descrizione**: 
+  Permette agli utenti di registrarsi fornendo username, email e password. La password viene salvata in forma hashata per garantire la sicurezza.
+  
+- **Processo**:
+  1. Hash della password con la libreria `passlib`.
+  2. Creazione del record utente nel database.
+  3. Invio di una mail di conferma contenente un link con un token di verifica.
+
+- **Request Body**:
+  ```json
+  {
+    "username": "example_user",
+    "email": "user@example.com",
+    "password": "securepassword"
+  }
+  ```
+
+- **Response**:
+  ```json
+  {
+    "message": "User registered successfully",
+    "user": {
+      "id": 1,
+      "username": "example_user",
+      "email": "user@example.com"
+    }
+  }
+  ```
+
+---
+
+### 2. **Conferma Email**
+- **Endpoint**: `/confirm-email`
+- **Metodo**: `GET`
+- **Descrizione**: 
+  Verifica l'indirizzo email degli utenti utilizzando un token JWT. Se la verifica è completata con successo, l'utente viene marcato come "verificato".
+
+- **Processo**:
+  1. Il token JWT viene decodificato per estrarre l'ID utente.
+  2. Il sistema controlla se l'utente esiste nel database.
+  3. Aggiorna il campo `is_verified` dell'utente.
+  4. Mostra una pagina HTML di conferma (o di errore in caso di problemi).
+
+- **Query Parameters**:
+  - `token`: Token di conferma email generato e inviato tramite email.
+
+- **Esempio di link ricevuto via email**:
+  ```
+  http://localhost:8000/confirm-email?token=eyJhbGciOiJIUzI1NiIs...
+  ```
+
+- **Risultati**:
+  - **Successo**: Mostra la pagina `confirm_success.html`.
+  - **Errore**: Mostra la pagina `confirm_error.html` con messaggi come "Utente non trovato" o "Token scaduto".
+
+---
+
+### 3. **Generazione Oroscopo**
+- **Endpoint**: `/genera_oroscopo/`
+- **Metodo**: `POST`
+- **Descrizione**:
+  Permette agli utenti di generare un oroscopo personalizzato sulla base dei dati forniti.
+
+- **Processo**:
+  1. Riceve i dati dell'utente necessari per calcolare l'oroscopo (data di nascita, luogo, ecc.).
+  2. Genera l'oroscopo utilizzando un'integrazione con OpenAI.
+  3. Crea un file PDF dell'oroscopo.
+  4. Restituisce il testo dell'oroscopo e il nome del file PDF.
+
+- **Request Body**:
+  ```json
+  {
+    "nome": "Mario Rossi",
+    "data_nascita": "1990-01-01",
+    "luogo_nascita": "Roma",
+    "ora_nascita": "12:00"
+  }
+  ```
+
+- **Response**:
+  ```json
+  {
+    "message": "Oroscopo generato e PDF in fase di creazione.",
+    "oroscopo_text": "Testo dell'oroscopo generato",
+    "pdf_filename": "oroscopo_mario_rossi.pdf"
+  }
+  ```
+
+---
+
+### 4. **Download Oroscopo**
+- **Endpoint**: `/download_oroscopo/{pdf_filename}`
+- **Metodo**: `GET`
+- **Descrizione**: 
+  Permette agli utenti di scaricare il file PDF dell'oroscopo generato.
+
+- **Processo**:
+  1. Verifica che il file PDF esista nella directory `static/oroscopi/`.
+  2. Restituisce il file come risposta.
+
+- **Parametri URL**:
+  - `pdf_filename`: Nome del file PDF da scaricare.
+
+---
+
+### 5. **Autenticazione con Token JWT**
+- **Endpoint Protetti**:
+  - `/protected`
+  - `/secure-data`
+- **Metodo**: `GET`
+- **Descrizione**:
+  Gestisce l'accesso ai dati protetti tramite un token JWT.
+
+- **Processo**:
+  1. Il token viene passato come parametro `Authorization` nell'header della richiesta.
+  2. Decodifica e verifica il token utilizzando `auth.auth.decode_token`.
+  3. Restituisce i dati protetti se il token è valido.
+
+- **Response** (in caso di successo):
+  ```json
+  {
+    "message": "Access granted",
+    "user": {
+      "user_id": 1,
+      "username": "example_user"
+    }
+  }
+  ```
+
+---
+
+### 6. **Integrazione Template HTML**
+- **Descrizione**:
+  Le risposte non sono più limitate al formato JSON. Vengono utilizzate pagine HTML per mostrare messaggi di successo o errore.
+
+- **Templates**:
+  - `templates/confirm_success.html`: Mostra un messaggio di successo per la verifica dell'email.
+  - `templates/confirm_error.html`: Mostra messaggi di errore come "Token non valido" o "Utente non trovato".
+
+- **Configurazione**:
+  I template sono serviti dalla directory configurata:
+  ```python
+  templates = Jinja2Templates(directory="templates")
+  ```
+
+- **Esempio di implementazione**:
+  ```python
+  return templates.TemplateResponse("confirm_success.html", {"request": request, "message": "Email confermata con successo!"})
+  ```
+
+---
+
+### **Cambiamenti al Progetto**
+- **Struttura del progetto aggiornata**:
+  ```
+  project/
+  ├── app.py
+  ├── auth/
+  │   └── auth.py
+  ├── db_config/
+  │   ├── db_config.py
+  ├── models.py
+  ├── crud/
+  │   ├── crud.py
+  ├── schemas/
+  │   ├── schemas.py
+  ├── templates/
+  │   ├── confirm_success.html
+  │   └── confirm_error.html
+  ├── static/
+  │   └── oroscopi/
+  └── oroscope/
+      └── oroscope.py
+  ```
+
+- **Nuove Dipendenze**:
+  - **`python-jose`**: Per la gestione dei token JWT.
+  - **`Jinja2`**: Per il rendering delle pagine HTML.
+  - **`passlib`**: Per l'hashing delle password.
+  - **`smtplib`**: Per inviare email di conferma.
+
+Questa documentazione offre una panoramica completa delle funzionalità e della loro implementazione, oltre a fornire dettagli tecnici per ogni endpoint e componente.

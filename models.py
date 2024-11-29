@@ -22,7 +22,7 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     created_at = Column(DateTime, default=func.current_timestamp(), nullable=False)
     updated_at = Column(DateTime, default=func.current_timestamp(), onupdate=func.current_timestamp(), nullable=False)
-    #is_verified = Column(Boolean, default=False)  # Aggiungi il campo is_verified
+    is_verified = Column(Boolean, default=False)  # Aggiungi il campo is_verified
     horoscopes = relationship("Horoscope", back_populates="user")
 
 

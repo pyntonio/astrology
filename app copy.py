@@ -18,9 +18,7 @@ from datetime import datetime, timedelta
 from auth.auth import decode_token, create_confirmation_token  # Usa la funzione corretta
 from fastapi.security import OAuth2PasswordBearer
 import secrets
-from fastapi.templating import Jinja2Templates
-from fastapi import Request
-from fastapi.responses import HTMLResponse
+
 
 Base.metadata.create_all(bind=engine)
 
@@ -40,7 +38,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Definisci il sistema di autorizzazione con OAuth2
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-templates = Jinja2Templates(directory="templates")
+
 # Funzione per hash delle password
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
@@ -54,7 +52,6 @@ def register_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
         "username": user.username,
         "email": user.email,
         "password_hash": hashed_password,
-        "is_verified": False,
         "created_at": current_time,
         "updated_at": current_time
     }
@@ -105,8 +102,8 @@ async def download_oroscopo(pdf_filename: str):
     # Restituisci il PDF come risposta
     return FileResponse(percorso_pdf, media_type="application/pdf", filename=pdf_filename)
 
-@app.get("/confirm-email", response_class=HTMLResponse)
-def confirm_email(request: Request, token: str = Query(...), db: Session = Depends(get_db)):
+@app.get("/confirm-email")
+def confirm_email(token: str = Query(...), db: Session = Depends(get_db)):
     try:
         # Decodifica il token per ottenere l'ID dell'utente
         decoded_token = decode_token(token)
@@ -114,13 +111,13 @@ def confirm_email(request: Request, token: str = Query(...), db: Session = Depen
         
         user = db.query(User).filter(User.id == user_id).first()
         if user:
-            user.is_verified = True 
+            user.is_verified = True
             db.commit()
-            return templates.TemplateResponse("confirm_success.html", {"request": request, "message": "Email confermata con successo!"})
+            return {"message": "Email confermata con successo!"}
         else:
-            return templates.TemplateResponse("confirm_error.html", {"request": request, "message": "Utente non trovato"})
+            raise HTTPException(status_code=404, detail="Utente non trovato")
     except Exception as e:
-        return templates.TemplateResponse("confirm_error.html", {"request": request, "message": "Token non valido o scaduto"})
+        raise HTTPException(status_code=400, detail="Token non valido o scaduto")
 
 # Funzione per inviare l'email di conferma
 def send_confirmation_email(to_email: str, user_id: int):
