@@ -42,20 +42,41 @@ project/
 ```
 my_app/
 │
+├── auth/
+│   ├── __init__.py           # Inizializzazione del modulo
+│   ├── auth.py               # Gestione hashing password e token JWT
+│   └── dependencies.py       # Dipendenze per autenticazione (e.g., verifica token)
+│
 ├── oroscope/  
-│   ├── natale_card.py 
-│   └── oroscope.py  
-│     
+│   ├── __init__.py           # Inizializzazione del modulo
+│   ├── natale_card.py        # Gestione della carta natale
+│   ├── oroscope.py           # Generazione degli oroscopi con OpenAI
+│
+├── crud/  
+│   ├── __init__.py           # Inizializzazione del modulo
+│   └── crud.py               # Operazioni CRUD per utenti e oroscopi
+│
+├── db_config/
+│   ├── __init__.py           # Inizializzazione del modulo
+│   ├── db_config.py          # Configurazione database SQLAlchemy
 │
 ├── lang/  
-│   ├── prompts.py  
-│   └── responses.py   
+│   ├── __init__.py           # Inizializzazione del modulo
+│   ├── prompts.py            # Prompt per OpenAI
+│   └── responses.py          # Risposte localizzate o generate
 │
 ├── pdf_generator/  
-│   └── pdf_creator.py   
-├── models.py    
+│   ├── __init__.py           # Inizializzazione del modulo
+│   └── pdf_creator.py        # Generazione di PDF personalizzati
 │
-└── app.py  # Main interface integrating all modules
+├── schemas/
+│   ├── __init__.py           # Inizializzazione del modulo
+│   └── schemas.py            # Schemi Pydantic (e.g., UserCreate, UserLogin)
+│
+├── models.py                 # Modelli SQLAlchemy per utenti e oroscopi
+├── app.py                    # Punto di ingresso principale dell'app FastAPI
+└── requirements.txt          # Dipendenze del progetto
+
 ```
 
 ---

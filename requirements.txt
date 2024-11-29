@@ -6,3 +6,14 @@ python-dotenv
 skyfield
 markdown
 reportlab
+sqlalchemy
+pydantic
+passlib
+python-jose
+pymysql
+cryptography
+bcrypt
+sqlalchemy[asyncio]
+pydantic[email]
+smtplib
+pyjwt
