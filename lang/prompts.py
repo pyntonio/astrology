@@ -56,7 +56,7 @@ def get_prompts(nome, data_nascita, ora_nascita, luogo_nascita, carta_natale, li
                     Quali influenze planetarie possono emergere per il segno {segno_solare} e l'ascendente {ascendente}?
                     """,
                     f"""
-                    Genera un oroscopo mensile dettagliato per {nome}, considerando la sua carta natale e i transiti planetari.
+                    Genera un oroscopo mensile dettagliato per {nome}, considerando la sua carta natale e i transiti planetari. Pianeti: {pianeti}
                     Prevedi come le posizioni planetarie influenzeranno vari aspetti della sua vita durante il mese, come relazioni, lavoro e salute.
                     """
                 ]
@@ -91,7 +91,7 @@ def get_prompts(nome, data_nascita, ora_nascita, luogo_nascita, carta_natale, li
                     What planetary influences might emerge for the {segno_solare} zodiac sign and {ascendente} ascendant?
                     """,
                     f"""
-                    Generate a detailed monthly horoscope for {nome}, considering their natal chart and planetary transits.
+                    Generate a detailed monthly horoscope for {nome}, considering their natal chart and planetary transits. Planets: {pianeti}
                     Predict how the planetary positions will affect various aspects of their life during the month, such as relationships, work, and health.
                     """
                 ]

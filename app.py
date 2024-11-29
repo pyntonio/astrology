@@ -21,6 +21,8 @@ import secrets
 from fastapi.templating import Jinja2Templates
 from fastapi import Request
 from fastapi.responses import HTMLResponse
+from oroscope.mensile import genera_oroscopo_mensile
+from oroscope.generico import  genera_oroscopo_generico
 
 Base.metadata.create_all(bind=engine)
 
@@ -176,3 +178,48 @@ def get_secure_data(token: str = Depends(oauth2_scheme)):
         return {"data": "This is secured data!"}
     else:
         raise HTTPException(status_code=403, detail="Unauthorized")
+
+
+
+
+@app.post("/genera_oroscopo_mensile/")
+async def genera_oroscopo_mensile_api(data: dict, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    try:
+        # Passiamo i dati ricevuti dall'utente alla funzione genera_oroscopo_mensile
+        result = await genera_oroscopo_mensile(data, db)  # Genera l'oroscopo mensile
+        
+        if "error" in result:
+            raise HTTPException(status_code=400, detail=result["error"])
+
+        # Estrai il testo dell'oroscopo mensile (contenuto in markdown)
+        oroscopo_text = result.get("generated_text", "")  # Prendi il testo generato
+
+        # Estrai il nome del PDF dal percorso restituito (se presente)
+        pdf_filename = result.get("pdf_filename", "").split("/")[-1]  # Estrai il nome del PDF dal path
+        
+        # Restituisci il risultato
+        return {
+            "message": "Oroscopo mensile generato con successo!",
+            "oroscopo_text": oroscopo_text,  # Restituisci anche il testo dell'oroscopo
+            "pdf_filename": pdf_filename
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/genera_oroscopo_generico/")
+async def genera_oroscopo_generico_api(data: dict, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    try:
+        # Passiamo i dati ricevuti dall'utente alla funzione genera_oroscopo_generico
+        result = await genera_oroscopo_generico(data, db)  # Genera l'oroscopo
+
+        if "error" in result:
+            raise HTTPException(status_code=400, detail=result["error"])
+
+        # Restituisci il risultato
+        return result
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
