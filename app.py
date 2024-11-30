@@ -1,5 +1,6 @@
-from fastapi import FastAPI, HTTPException, APIRouter, Query, BackgroundTasks, Depends
+from fastapi import FastAPI, HTTPException, APIRouter, Query, BackgroundTasks, Depends, status
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.security import OAuth2PasswordRequestForm
 from email.message import EmailMessage
 from oroscope.oroscope import genera_oroscopo
 import os
@@ -15,7 +16,7 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from datetime import datetime, timedelta
-from auth.auth import decode_token, create_confirmation_token  # Usa la funzione corretta
+from auth.auth import decode_token, create_confirmation_token  
 from fastapi.security import OAuth2PasswordBearer
 import secrets
 from fastapi.templating import Jinja2Templates
@@ -23,6 +24,9 @@ from fastapi import Request
 from fastapi.responses import HTMLResponse
 from oroscope.mensile import genera_oroscopo_mensile
 from oroscope.generico import  genera_oroscopo_generico
+from auth.auth_utils import verify_password, create_access_token
+from auth.dependencies import get_current_user
+from pydantic import BaseModel
 
 Base.metadata.create_all(bind=engine)
 
@@ -68,6 +72,73 @@ def register_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     send_confirmation_email(user.email, new_user.id)
 
     return {"message": "User registered successfully", "user": new_user}
+
+# login
+@app.post("/token")
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    # Cerca l'utente tramite l'email
+    user = db.query(User).filter(User.email == form_data.username).first()
+    
+    # Verifica se l'utente esiste e se la password è corretta
+    if not user or not verify_password(form_data.password, user.password_hash):  # Cambia 'hashed_password' con 'password_hash'
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Crea il token di accesso
+    access_token = create_access_token(data={"sub": user.email})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+# Definizione del modello per la richiesta
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+# Endpoint che utilizza ChangePasswordRequest
+@app.post("/change-password")
+def change_password(
+    change_request: ChangePasswordRequest,  # Modello della richiesta
+    current_user: str = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    user = db.query(User).filter(User.email == current_user).first()
+
+    # Verifica la password usando 'password_hash'
+    if not user or not verify_password(change_request.current_password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Incorrect current password",
+        )
+
+    user.password_hash = hash_password(change_request.new_password)
+    db.commit()
+    return {"message": "Password updated successfully"}
+
+# test per l'inivio di dati da database a frontend per ora in questo endpoint richiedo i dati dalla tabella user per il dato token creato
+@app.get("/secure-data")
+def read_secure_data(current_user: str = Depends(get_current_user), db: Session = Depends(get_db)):
+    """
+    Endpoint protetto accessibile solo agli utenti autenticati.
+    Restituisce informazioni dettagliate sull'utente.
+    """
+    user = db.query(User).filter(User.email == current_user).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    # Esempio di informazioni che puoi restituire
+    return {
+        "message": f"Hello, {user.username}! This is your secure data.",
+        "email": user.email,
+        "created_at": user.created_at,
+        "is_verified": user.is_verified,
+    }
+
+
 
 # Endpoint per generare l'oroscopo
 @app.post("/genera_oroscopo/") 

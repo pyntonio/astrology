@@ -36,3 +36,8 @@ class HoroscopeOut(HoroscopeBase):
 
     class Config:
         orm_mode = True
+        
+# Crea un modello Pydantic per la richiesta del cambio password
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str

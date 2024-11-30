@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Data</title>
+</head>
+<body>
+    <h1>Secure Data</h1>
+    <div id="response"></div>
+
+    <script>
+        async function fetchSecureData() {
+            const token = localStorage.getItem('token'); // Ottieni il token dal localStorage
+    
+            if (!token) {
+                document.getElementById('response').innerHTML = 'You need to login first.';
+                return;
+            }
+    
+            const response = await fetch('http://127.0.0.1:8000/secure-data', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+    
+            const data = await response.json();
+    
+            if (response.ok) {
+                document.getElementById('response').innerHTML = `
+                    <p>${data.message}</p>
+                    <p>Email: ${data.email}</p>
+                    <p>Account created on: ${data.created_at}</p>
+                    <p>Verified: ${data.is_verified ? 'Yes' : 'No'}</p>
+                `;
+            } else {
+                document.getElementById('response').innerHTML = `Error: ${data.detail}`;
+            }
+        }
+    
+        fetchSecureData(); // Carica i dati protetti al caricamento della pagina
+    </script>
+    
+</body>
+</html>

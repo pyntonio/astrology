@@ -1359,3 +1359,294 @@ alembic upgrade head
 
 ### **Conclusione**
 Alembic è un tool indispensabile per progetti che richiedono una gestione strutturata e sicura delle migrazioni di database. Ti permette di concentrarti sullo sviluppo delle funzionalità senza preoccuparti degli aggiornamenti manuali dello schema del database. Se vuoi implementarlo nel tuo progetto, posso aiutarti!
+
+
+
+
+# Implementazioni dei nuovi endpoint
+
+Capito! Ecco la documentazione aggiornata con la parte di **`/secure-data`** utilizzando la vecchia versione, dove i dati sono protetti e dipendono dall'utente autenticato senza un parametro `data_type`:
+
+---
+
+### 1. **`/token` - Login e generazione del token di accesso**
+
+**Descrizione**:
+Questo endpoint consente agli utenti di autenticarsi utilizzando il loro nome utente (email) e password. Se i dati di accesso sono corretti, viene generato un token di accesso JWT che può essere utilizzato per accedere a endpoint protetti.
+
+**Metodo**: `POST`
+
+**URL**: `/token`
+
+**Parametri**:
+- **username** (string): L'email dell'utente (come nome utente).
+- **password** (string): La password dell'utente.
+
+**Body della richiesta**:
+Il corpo della richiesta deve essere inviato nel formato `application/x-www-form-urlencoded` con i seguenti campi:
+```plaintext
+username=<user_email>
+password=<user_password>
+```
+
+**Esempio di richiesta**:
+```plaintext
+POST /token
+Content-Type: application/x-www-form-urlencoded
+
+username=lantoniotrento@gmail.com&password=mySecurePassword
+```
+
+**Risposta (successo)**:
+```json
+{
+  "access_token": "<JWT_token>",
+  "token_type": "bearer"
+}
+```
+
+- **access_token**: Il token JWT che l'utente può utilizzare per accedere agli endpoint protetti.
+- **token_type**: Il tipo di token (di solito "bearer").
+
+**Risposta (errore)**:
+In caso di credenziali errate, la risposta sarà:
+```json
+{
+  "detail": "Invalid credentials"
+}
+```
+
+**Codici di stato**:
+- **200 OK**: Successo, il token è stato generato.
+- **401 Unauthorized**: Credenziali non valide.
+
+---
+
+### 2. **`/change-password` - Cambio della password dell'utente**
+
+**Descrizione**:
+Questo endpoint permette a un utente autenticato di cambiare la propria password. L'utente deve fornire la password attuale e la nuova password desiderata. Se la password attuale è corretta, la password dell'utente verrà aggiornata.
+
+**Metodo**: `POST`
+
+**URL**: `/change-password`
+
+**Parametri**:
+- **current_password** (string): La password attuale dell'utente.
+- **new_password** (string): La nuova password che l'utente desidera impostare.
+
+**Body della richiesta**:
+Il corpo della richiesta deve essere nel formato JSON, contenente i seguenti campi:
+```json
+{
+  "current_password": "currentPassword123",
+  "new_password": "newPassword456"
+}
+```
+
+**Esempio di richiesta**:
+```json
+POST /change-password
+Content-Type: application/json
+Authorization: Bearer <access_token>
+
+{
+  "current_password": "myOldPassword",
+  "new_password": "myNewPassword"
+}
+```
+
+**Risposta (successo)**:
+```json
+{
+  "message": "Password updated successfully"
+}
+```
+
+**Risposta (errore)**:
+Se la password attuale è errata, la risposta sarà:
+```json
+{
+  "detail": "Incorrect current password"
+}
+```
+
+**Codici di stato**:
+- **200 OK**: Successo, la password è stata aggiornata.
+- **400 Bad Request**: La password attuale fornita è errata.
+- **401 Unauthorized**: L'utente non è autenticato correttamente o il token è scaduto.
+
+---
+
+### 3. **`/secure-data` - Dati protetti dell'utente**
+
+**Descrizione**:
+Questo endpoint consente agli utenti autenticati di accedere ai dati protetti associati al proprio account. L'utente deve essere autenticato tramite il token JWT e avrà accesso ai dati protetti legati al proprio account, come informazioni personali, oroscopi generici o mensili, etc.
+
+**Metodo**: `GET`
+
+**URL**: `/secure-data`
+
+**Parametri**: 
+Non sono richiesti parametri nel corpo della richiesta. I dati vengono filtrati automaticamente in base all'utente autenticato.
+
+**Autenticazione**:
+L'utente deve fornire un **token JWT** valido nell'intestazione `Authorization`:
+```plaintext
+Authorization: Bearer <access_token>
+```
+
+**Esempio di richiesta**:
+```json
+GET /secure-data
+Content-Type: application/json
+Authorization: Bearer <access_token>
+```
+
+**Risposta (successo)**:
+Se la richiesta è valida, l'endpoint restituirà i dati protetti dell'utente. Ad esempio, in caso di accesso ai dati degli oroscopi generici:
+```json
+{
+  "message": "Hello, antoniotrento! These are your secure data.",
+  "data": [
+    {
+      "id": 1,
+      "title": "Horoscope for Aries",
+      "description": "Aries, this is your horoscope for today!"
+    },
+    {
+      "id": 2,
+      "title": "Horoscope for Taurus",
+      "description": "Taurus, get ready for an adventurous day."
+    }
+  ]
+}
+```
+
+In alternativa, per dati mensili (come gli oroscopi mensili):
+```json
+{
+  "monthly_horoscopes": [
+    {
+      "month": "January",
+      "horoscope": "Your horoscope for January..."
+    },
+    {
+      "month": "February",
+      "horoscope": "Your horoscope for February..."
+    }
+  ]
+}
+```
+
+**Risposta (errore)**:
+Se l'utente non è autenticato correttamente o il token è scaduto, la risposta sarà:
+```json
+{
+  "detail": "Not authenticated or token expired"
+}
+```
+
+**Codici di stato**:
+- **200 OK**: Successo, i dati protetti sono stati restituiti correttamente.
+- **401 Unauthorized**: L'utente non è autenticato correttamente o il token è scaduto.
+- **400 Bad Request**: Qualcosa è andato storto nella richiesta o l'utente non ha accesso a questi dati.
+
+---
+
+### Considerazioni Generali:
+- **Autenticazione**: Per l'endpoint **`/change-password`** e **`/secure-data`**, è necessario includere un token di accesso valido nel campo di autorizzazione (Authorization header).
+- **Sicurezza**: Assicurati che la connessione sia sicura (HTTPS) per proteggere i dati sensibili come password e token.
+- **Errori**: La gestione degli errori è implementata per restituire messaggi chiari e specifici in caso di fallimento dell'autenticazione o di errore nella richiesta.
+
+--- 
+
+Questa documentazione copre i dettagli relativi all'uso e alla gestione dei tre endpoint: **`/token`**, **`/change-password`**, e **`/secure-data`**.
+
+## secure-data approfondimento
+
+ok non usero la tabella per ora. ho un'altra domanda:
+
+Ma dovrò creare un endpoint per ogni tipo di richiesta secure-data diversa?
+
+
+ti faccio un esempio vorrò creare delle pagine protette dove faro vedere ad esempio l'elenco della tabella generic_horoscopes per utente opuure un'altra che farà vedere monthly_horoscopes
+
+Non è necessario creare un endpoint separato per ogni tipo di richiesta "secure-data". Puoi creare un unico endpoint generico che restituisce i dati protetti in base al tipo di richiesta, passando come parametro il tipo di dati che desideri visualizzare (ad esempio, dati specifici dell'utente da diverse tabelle).
+
+Ecco come puoi farlo:
+
+1. **Creare un endpoint generico**: Un singolo endpoint che accetta un parametro per determinare il tipo di dati da restituire. Puoi quindi utilizzare questo parametro per eseguire query diverse nel database, restituendo i dati desiderati.
+
+2. **Gestire le diverse tabelle con logica condizionale**: Puoi scrivere una logica all'interno dell'endpoint per selezionare la tabella appropriata (ad esempio, `generic_horoscopes` o `monthly_horoscopes`) in base al tipo di richiesta.
+
+### Esempio di endpoint generico:
+```python
+from fastapi import Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from app.models import GenericHoroscope, MonthlyHoroscope, User  # Importa i modelli appropriati
+
+# Modello per il tipo di richiesta (opzionale)
+from pydantic import BaseModel
+
+class DataRequest(BaseModel):
+    data_type: str  # Tipo di dati richiesti (ad esempio 'generic_horoscopes', 'monthly_horoscopes')
+
+@app.post("/secure-data")
+def get_secure_data(
+    data_request: DataRequest,
+    current_user: str = Depends(get_current_user),  # Ottieni l'utente autenticato
+    db: Session = Depends(get_db)  # Connessione al database
+):
+    """
+    Endpoint generico per restituire dati protetti in base al tipo di richiesta.
+    """
+    # Controlla se l'utente è autenticato
+    user = db.query(User).filter(User.email == current_user).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found"
+        )
+
+    # Verifica il tipo di dati richiesti e recupera le informazioni appropriate
+    if data_request.data_type == "generic_horoscopes":
+        # Restituisci l'elenco degli oroscopi generici per l'utente
+        horoscopes = db.query(GenericHoroscope).filter(GenericHoroscope.user_id == user.id).all()
+        return {"horoscopes": horoscopes}
+
+    elif data_request.data_type == "monthly_horoscopes":
+        # Restituisci l'elenco degli oroscopi mensili per l'utente
+        monthly_horoscopes = db.query(MonthlyHoroscope).filter(MonthlyHoroscope.user_id == user.id).all()
+        return {"monthly_horoscopes": monthly_horoscopes}
+
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid data type requested"
+        )
+```
+
+### Cosa fa questo codice:
+1. **Parametro `data_type`**: Viene passato un parametro `data_type` che indica quale tipo di dati l'utente desidera ricevere (`generic_horoscopes` o `monthly_horoscopes`).
+2. **Condizioni per la query**: La logica all'interno dell'endpoint verifica il tipo di dati richiesto e seleziona la query appropriata in base alla scelta dell'utente.
+3. **Risposta dinamica**: Restituisce i dati in un formato JSON. Puoi aggiungere ulteriori logiche condizionali per gestire altre tabelle o tipi di dati se necessario.
+
+### Estendere per più tabelle:
+Se hai altre tabelle o tipi di dati da restituire, puoi aggiungere ulteriori condizioni `elif` per ciascun tipo di richiesta, come ad esempio:
+```python
+elif data_request.data_type == "other_data_type":
+    other_data = db.query(OtherData).filter(OtherData.user_id == user.id).all()
+    return {"other_data": other_data}
+```
+
+### Vantaggi di questa soluzione:
+- **Flessibilità**: Non hai bisogno di creare endpoint separati per ogni tipo di dati. Un unico endpoint può gestire tutte le richieste protette in base al parametro `data_type`.
+- **Mantenibilità**: Se in futuro desideri aggiungere nuovi tipi di dati, ti basta aggiungere una nuova condizione, senza dover scrivere endpoint duplicati.
+- **Scalabilità**: Puoi estendere facilmente l'endpoint per supportare più tipi di dati o tabelle, rendendo il sistema più modulare e meno soggetto a cambiamenti frequenti.
+
+### Considerazioni:
+- **Controllo dell'accesso**: Assicurati che solo gli utenti autorizzati possano accedere ai dati protetti. Nel codice sopra, il controllo dell'autenticazione è fatto con il metodo `get_current_user`.
+- **Performance**: Se le tabelle crescono, assicurati che le query siano ottimizzate. Puoi usare indici o tecniche di paginazione per gestire grandi volumi di dati.
+
+Con questa struttura, puoi creare una sola rotta protetta che restituisce dati diversi in base alla richiesta dell'utente, semplificando il codice del backend.
