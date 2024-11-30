@@ -8,3 +8,13 @@ venv/
 # Ignora altri file di configurazione specifici
 *.log
 *.env
+
+# Escludi la cartella node_modules
+node_modules/
+
+# Escludi la cartella build (creata quando costruisci l'app per la produzione)
+build/
+
+
+# Escludi la cartella log
+logs/
