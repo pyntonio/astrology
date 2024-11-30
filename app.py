@@ -73,13 +73,12 @@ def register_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
 
     return {"message": "User registered successfully", "user": new_user}
 
-# login
 @app.post("/token")
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     # Cerca l'utente tramite l'email
     user = db.query(User).filter(User.email == form_data.username).first()
     
-    # Verifica se l'utente esiste e se la password è corretta
+    # Verifica se l'utente esiste, se la password è corretta, e se l'utente è verificato
     if not user or not verify_password(form_data.password, user.password_hash):  # Cambia 'hashed_password' con 'password_hash'
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -87,9 +86,18 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
             headers={"WWW-Authenticate": "Bearer"},
         )
     
+    # Verifica se l'utente è verificato
+    if not user.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not verified",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     # Crea il token di accesso
     access_token = create_access_token(data={"sub": user.email})
     return {"access_token": access_token, "token_type": "bearer"}
+
 
 # Definizione del modello per la richiesta
 class ChangePasswordRequest(BaseModel):
