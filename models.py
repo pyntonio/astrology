@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional
-from sqlalchemy import Column, Integer, String, ForeignKey, Date, Text, TIMESTAMP, DateTime, Boolean
+from sqlalchemy import Column, Integer, String, ForeignKey, Date, Text, TIMESTAMP, DateTime, Boolean, JSON
 from sqlalchemy.orm import relationship
 from db_config.db_config import Base
 from sqlalchemy.sql import func
@@ -19,12 +19,18 @@ class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(255), unique=True, nullable=False)
+    name = Column(String(255), nullable=True)  # Nuovo campo
+    surname = Column(String(255), nullable=True)  # Nuovo campo
     email = Column(String(255), unique=True, nullable=False)
+    born_date = Column(Date, nullable=True)  # Nuovo campo
+    born_hour = Column(String(8), nullable=True)  # Nuovo campo (formato HH:MM:SS)
+    born_place = Column(String(255), nullable=True)  # Nuovo campo
     password_hash = Column(String(255), nullable=False)
     created_at = Column(DateTime, default=func.current_timestamp(), nullable=False)
     updated_at = Column(DateTime, default=func.current_timestamp(), onupdate=func.current_timestamp(), nullable=False)
-    is_verified = Column(Boolean, default=False)  # Aggiungi il campo is_verified
-    
+    is_verified = Column(Boolean, default=False)
+    # Relazione con la carta natale
+    natal_cards = relationship("NataleCard", back_populates="user")
 
 class Horoscope(Base):
     __tablename__ = "horoscopes"
@@ -76,3 +82,23 @@ class MonthlyHoroscope(Base):
     ascendant_sign = Column(String(50), nullable=True)
     moon_sign = Column(String(50), nullable=True)
     generated_text = Column(Text, nullable=False)
+
+
+# Modello per la carta natale
+class NataleCard(Base):
+    __tablename__ = "natale_card"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    birth_date = Column(Date, nullable=False)
+    birth_time = Column(String(8), nullable=False)  # Formato HH:MM
+    birth_place = Column(String(255), nullable=False)
+    sun_sign = Column(String(50), nullable=True)
+    sun_sign_description = Column(Text, nullable=True)
+    ascendant = Column(String(50), nullable=True)
+    ascendant_description = Column(Text, nullable=True)
+    planets = Column(JSON, nullable=True)  # Planet positions stored as JSON
+    created_at = Column(DateTime, default=func.current_timestamp())
+    updated_at = Column(DateTime, default=func.current_timestamp(), onupdate=func.current_timestamp())
+    
+    user = relationship("User", back_populates="natal_cards")  # Relazione con l'utente

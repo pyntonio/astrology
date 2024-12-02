@@ -15,7 +15,7 @@ from schemas import schemas
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 from auth.auth import decode_token, create_confirmation_token  
 from fastapi.security import OAuth2PasswordBearer
 import secrets
@@ -27,6 +27,9 @@ from oroscope.generico import  genera_oroscopo_generico
 from auth.auth_utils import verify_password, create_access_token
 from auth.dependencies import get_current_user
 from pydantic import BaseModel
+from oroscope.natale_card import calcola_carta_natale
+import models
+
 
 Base.metadata.create_all(bind=engine)
 
@@ -129,7 +132,6 @@ def change_password(
     db.commit()
     return {"message": "Password updated successfully"}
 
-# test per l'inivio di dati da database a frontend per ora in questo endpoint richiedo i dati dalla tabella user per il dato token creato
 @app.get("/secure-data")
 def read_secure_data(current_user: str = Depends(get_current_user), db: Session = Depends(get_db)):
     """
@@ -144,14 +146,122 @@ def read_secure_data(current_user: str = Depends(get_current_user), db: Session 
             detail="User not found",
         )
 
-    # Esempio di informazioni che puoi restituire
+    # Formattazione born_hour se presente
+    born_hour_formatted = None
+    if user.born_hour is not None:
+        total_seconds = user.born_hour.total_seconds()  # Ottieni i secondi totali da timedelta
+        born_hour_formatted = time(
+            int(total_seconds // 3600), 
+            int((total_seconds % 3600) // 60)
+        ).strftime("%H:%M:%S")
+
     return {
         "message": f"Hello, {user.username}! This is your secure data.",
+        "username": user.username,
+        "name": user.name,
+        "surname": user.surname,
         "email": user.email,
+        "born_date": user.born_date,
+        "born_hour": born_hour_formatted,  # Ora formattata
+        "born_place": user.born_place,
         "created_at": user.created_at,
-        "is_verified": user.is_verified,
+        "updated_at": user.updated_at,
+        "is_verified": bool(user.is_verified),
     }
 
+# Definisci il Pydantic model per l'aggiornamento delle informazioni utente
+class UserUpdate(BaseModel):
+    name: str
+    surname: str
+    born_date: str  # Assuming a string format, you can adjust according to your DB schema
+    born_hour: str  # If you want to store this as string (or use datetime.time)
+    born_place: str
+
+
+# Endpoint per aggiornare i dati utente
+@app.put("/update-user/")
+def update_user_info(
+    user_update: UserUpdate,
+    current_user: str = Depends(get_current_user),  # Assicura che l'utente sia autenticato
+    db: Session = Depends(get_db)
+):
+    # Recupera l'utente dal database basandosi sull'email nel token
+    user = db.query(models.User).filter(models.User.email == current_user).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Converti la data in formato 'dd-mm-yyyy' a 'yyyy-mm-dd' prima di salvarla
+    try:
+        # Converti la data nel formato 'dd-mm-yyyy' in 'yyyy-mm-dd'
+        user_update.born_date = datetime.strptime(user_update.born_date, "%d-%m-%Y").strftime("%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Please use dd-mm-yyyy")
+
+    # Aggiorna le informazioni dell'utente con i nuovi dati
+    user.name = user_update.name
+    user.surname = user_update.surname
+    user.born_date = datetime.strptime(user_update.born_date, "%Y-%m-%d")  # Assicurati che il formato sia 'YYYY-MM-DD'
+    user.born_hour = user_update.born_hour  # Adjust based on your schema if it's stored as datetime.time
+    user.born_place = user_update.born_place
+    user.updated_at = datetime.now()  # Update the timestamp
+    
+    # Commit delle modifiche nel database
+    db.commit()
+
+    # Ora calcoliamo la carta natale
+    try:
+        # Chiamata alla funzione per calcolare la carta natale
+        carta_natale = calcola_carta_natale(
+            user_update.born_date,
+            user_update.born_hour,
+            user_update.born_place
+        )
+
+        # Controlliamo se l'utente ha già una carta natale
+        existing_card = db.query(models.NataleCard).filter(models.NataleCard.user_id == user.id).first()
+        
+        if existing_card:
+            # Se la carta natale esiste già, aggiorniamo i dati
+            existing_card.sun_sign = carta_natale["segno_solare"]["segno"]
+            existing_card.sun_sign_description = carta_natale["segno_solare"]["descrizione"]
+            existing_card.ascendant = carta_natale["ascendente"]["segno"]
+            existing_card.ascendant_description = carta_natale["ascendente"]["descrizione"]
+            existing_card.planets = carta_natale["pianeti"]
+            existing_card.updated_at = datetime.now()  # Update the timestamp
+            db.commit()
+        else:
+            # Se non esiste, creiamo una nuova carta natale per l'utente
+            new_card = models.NataleCard(
+                user_id=user.id,
+                birth_date=user_update.born_date,
+                birth_time=user_update.born_hour,
+                birth_place=user_update.born_place,
+                sun_sign=carta_natale["segno_solare"]["segno"],
+                sun_sign_description=carta_natale["segno_solare"]["descrizione"],
+                ascendant=carta_natale["ascendente"]["segno"],
+                ascendant_description=carta_natale["ascendente"]["descrizione"],
+                planets=carta_natale["pianeti"]
+            )
+            db.add(new_card)
+            db.commit()
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error while calculating natal chart: {str(e)}")
+    
+    # Ritorna i dati aggiornati dell'utente insieme alla carta natale
+    return {
+        "message": "User data and natal chart updated successfully",
+        "user": {
+            "name": user.name,
+            "surname": user.surname,
+            "born_date": user.born_date.strftime("%Y-%m-%d"),
+            "born_hour": user.born_hour,
+            "born_place": user.born_place,
+            "updated_at": user.updated_at.strftime("%Y-%m-%d %H:%M:%S")
+        },
+        "natal_chart": carta_natale
+    }
 
 
 # Endpoint per generare l'oroscopo

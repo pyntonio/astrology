@@ -7,12 +7,14 @@ from datetime import datetime
 # Funzioni di validazione per data e ora
 def valida_data(data: str) -> str:
     try:
+        # Converte e restituisce la data in formato YYYY-MM-DD
         return datetime.strptime(data, "%Y-%m-%d").strftime("%Y-%m-%d")
     except ValueError:
         raise ValueError("Formato data non valido. Usa il formato 'YYYY-MM-DD'.")
 
 def valida_ora(ora: str) -> str:
     try:
+        # Converte e restituisce l'ora in formato HH:MM
         return datetime.strptime(ora, "%H:%M").strftime("%H:%M")
     except ValueError:
         raise ValueError("Formato ora non valido. Usa il formato 'HH:MM'.")
@@ -149,7 +151,10 @@ def calcola_carta_natale(data_nascita: str, ora_nascita: str, luogo_nascita: str
             }
         }
 
-        return output
+        # Debug: Stampa l'output per verifica
+        print("Debug - Output calcola_carta_natale:", output)
 
-    except ValueError as e:
-        return {"errore": str(e)}
+        return output
+    
+    except Exception as e:
+        raise ValueError(f"Errore nel calcolo della carta natale: {e}")
