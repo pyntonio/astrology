@@ -228,6 +228,9 @@ def update_user_info(
             existing_card.ascendant = carta_natale["ascendente"]["segno"]
             existing_card.ascendant_description = carta_natale["ascendente"]["descrizione"]
             existing_card.planets = carta_natale["pianeti"]
+            existing_card.birth_date = user_update.born_date
+            existing_card.birth_time = user_update.born_hour
+            existing_card.birth_place = user_update.born_place
             existing_card.updated_at = datetime.now()  # Update the timestamp
             db.commit()
         else:
