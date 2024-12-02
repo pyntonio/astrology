@@ -4,7 +4,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from email.message import EmailMessage
 from oroscope.oroscope import genera_oroscopo
 import os
-from models import OroscopoRequest, User  # Importa il modello che hai creato
+from models import OroscopoRequest, MonthlyHoroscope, User  # Importa il modello che hai creato
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from db_config.db_config import Base, engine, get_db
@@ -53,25 +53,31 @@ def hash_password(password: str) -> str:
 
 @app.post("/register/")  # Endpoint per la registrazione
 def register_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    hashed_password = hash_password(user.password)
-    current_time = datetime.now()
-    
-    user_data = {
-        "username": user.username,
-        "email": user.email,
-        "password_hash": hashed_password,
-        "is_verified": False,
-        "created_at": current_time,
-        "updated_at": current_time
-    }
-    
-    # Crea l'utente nel database
-    new_user = create_user(db=db, user=user_data)
+    try:
+        # Hash della password
+        hashed_password = hash_password(user.password)
+        current_time = datetime.now()
+        
+        user_data = {
+            "username": user.username,
+            "email": user.email,
+            "password_hash": hashed_password,
+            "is_verified": False,
+            "created_at": current_time,
+            "updated_at": current_time
+        }
 
-    # Invia l'email di conferma
-    send_confirmation_email(user.email, new_user.id)
+        # Crea l'utente nel database
+        new_user = create_user(db=db, user=user_data)
 
-    return {"message": "User registered successfully", "user": new_user}
+        # Se la creazione è riuscita, invia l'email di conferma
+        send_confirmation_email(user.email, new_user.id)
+
+        return {"message": "User registered successfully", "user": new_user}
+    
+    except Exception as e:
+        # Se c'è un errore durante la registrazione, restituisci un errore HTTP
+        raise HTTPException(status_code=400, detail=f"Error occurred during registration: {str(e)}")
 
 @app.post("/token")
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
@@ -301,4 +307,28 @@ async def genera_oroscopo_generico_api(data: dict, background_tasks: BackgroundT
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+
+@app.get("/get_monthly_horoscopes/")
+def get_monthly_horoscopes(db: Session = Depends(get_db), current_user: str = Depends(get_current_user)):
+    try:
+        # Recuperiamo l'utente tramite l'email estratta dal token
+        user = db.query(User).filter(User.email == current_user).first()
+
+        if user is None:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Usando l'ID dell'utente per fare la query sugli oroscopi
+        horoscopes = db.query(MonthlyHoroscope).filter(MonthlyHoroscope.user_id == user.id).all()
+
+        if not horoscopes:
+            raise HTTPException(status_code=404, detail="No horoscopes found for this user")
+
+        return {"horoscopes": horoscopes}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
 

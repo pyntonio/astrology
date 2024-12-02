@@ -4,6 +4,7 @@ from sqlalchemy import Column, Integer, String, ForeignKey, Date, Text, TIMESTAM
 from sqlalchemy.orm import relationship
 from db_config.db_config import Base
 from sqlalchemy.sql import func
+import datetime
 
 class OroscopoRequest(BaseModel):
     user_id: int  # Aggiungi il campo user_id per l'utente
@@ -64,14 +65,14 @@ class HoroscopeGeneration(Base):
 
 class MonthlyHoroscope(Base):
     __tablename__ = "monthly_horoscopes"
-
+    
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)  # Assumiamo che tu abbia una tabella 'users' per l'associazione
+    user_id = Column(Integer, index=True)
+    pdf_filename = Column(String(255), nullable=True)
+    generated_at = Column(DateTime, default=datetime.datetime.utcnow)
     birthdate = Column(Date, nullable=False)
     birthplace = Column(String(255), nullable=False)
     sun_sign = Column(String(50), nullable=True)
     ascendant_sign = Column(String(50), nullable=True)
     moon_sign = Column(String(50), nullable=True)
     generated_text = Column(Text, nullable=False)
-    pdf_filename = Column(String(255), nullable=True)
-    created_at = Column(DateTime, nullable=True, default=func.current_timestamp())  # Timestamp corretto
