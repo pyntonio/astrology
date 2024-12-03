@@ -133,18 +133,29 @@ def change_password(
     return {"message": "Password updated successfully"}
 
 @app.get("/secure-data")
-def read_secure_data(current_user: str = Depends(get_current_user), db: Session = Depends(get_db)):
+def read_secure_data(
+    current_user: str = Depends(get_current_user), 
+    db: Session = Depends(get_db)
+):
     """
     Endpoint protetto accessibile solo agli utenti autenticati.
-    Restituisce informazioni dettagliate sull'utente.
+    Restituisce informazioni dettagliate sull'utente, inclusa la carta natale.
     """
-    user = db.query(User).filter(User.email == current_user).first()
+    # Recupera l'utente e la carta natale associata usando una join
+    user_with_card = (
+        db.query(models.User, models.NataleCard)
+        .join(models.NataleCard, models.NataleCard.user_id == models.User.id, isouter=True)
+        .filter(models.User.email == current_user)
+        .first()
+    )
 
-    if not user:
+    if not user_with_card:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
+            detail="User or natal chart not found",
         )
+    
+    user, natal_card = user_with_card
 
     # Formattazione born_hour se presente
     born_hour_formatted = None
@@ -155,7 +166,8 @@ def read_secure_data(current_user: str = Depends(get_current_user), db: Session 
             int((total_seconds % 3600) // 60)
         ).strftime("%H:%M:%S")
 
-    return {
+    # Costruisci la risposta
+    response = {
         "message": f"Hello, {user.username}! This is your secure data.",
         "username": user.username,
         "name": user.name,
@@ -168,6 +180,15 @@ def read_secure_data(current_user: str = Depends(get_current_user), db: Session 
         "updated_at": user.updated_at,
         "is_verified": bool(user.is_verified),
     }
+
+    # Aggiungi i dati della carta natale se disponibili
+    if natal_card:
+        response.update({
+            "sun_sign": natal_card.sun_sign,
+            "ascendant": natal_card.ascendant,
+        })
+
+    return response
 
 # Definisci il Pydantic model per l'aggiornamento delle informazioni utente
 class UserUpdate(BaseModel):
