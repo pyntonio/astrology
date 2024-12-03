@@ -1,4 +1,12 @@
-# PyGPT
+# Astropy
+
+## todo
+
+- Integrare stripe, fastapi, DB, frontend: https://chatgpt.com/share/674f4d56-94a8-8011-bccf-ab9d0195fe63 per reccuring payment e sigle payment
+- Analisi per job oroscopo mensile (job da cronjob + user experience per inserire tutti i dati necessari) e gestione mailer_queue di invio mensile
+- Hard tweak del frontend per renderlo usabile al 100%
+- Frontend landing pages marketing
+- campagne ppc fb e google
 
 # Web Application with FastAPI and OpenAI Integration  
 
