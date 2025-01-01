@@ -468,7 +468,7 @@ def get_monthly_horoscopes(db: Session = Depends(get_db), current_user: str = De
 
 
 
-# Stripe payments
+# Stripe payments https://chatgpt.com/share/674f4d56-94a8-8011-bccf-ab9d0195fe63
 
 # Modello per ricevere i dettagli del piano
 class PaymentRequest(BaseModel):
