@@ -1650,3 +1650,690 @@ elif data_request.data_type == "other_data_type":
 - **Performance**: Se le tabelle crescono, assicurati che le query siano ottimizzate. Puoi usare indici o tecniche di paginazione per gestire grandi volumi di dati.
 
 Con questa struttura, puoi creare una sola rotta protetta che restituisce dati diversi in base alla richiesta dell'utente, semplificando il codice del backend.
+
+
+
+
+Per integrare **Stripe** nella tua applicazione con un backend in **FastAPI**, un frontend in **React**, e un database **MySQL**, puoi seguire questi passi:
+
+---
+
+### **Passo 1: Creare un account e configurare Stripe**
+1. Registrati su [Stripe](https://stripe.com/).
+2. Crea un **prodotto** nel dashboard Stripe (es. "Oroscopo mensile").
+3. Imposta i piani di abbonamento:
+   - Mensile: Ad esempio, €10/mese.
+   - Annuale: Ad esempio, €100/anno (sconto rispetto al mensile).
+
+---
+
+### **Passo 2: Installare la libreria Stripe**
+Nel backend (FastAPI):
+```bash
+pip install stripe
+```
+
+Nel frontend (React):
+```bash
+npm install @stripe/stripe-js
+```
+
+---
+
+### **Passo 3: Backend - Configurare un endpoint per creare sessioni di pagamento**
+Crea un endpoint in **FastAPI** per gestire le sessioni di pagamento. Aggiungi il seguente codice:
+
+#### **Esempio di configurazione**
+```python
+import stripe
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+from dotenv import load_dotenv
+import os
+
+# Carica la chiave segreta di Stripe
+load_dotenv()
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+
+app = FastAPI()
+
+# Modello per ricevere i dettagli del piano
+class PaymentRequest(BaseModel):
+    plan: str  # "monthly" o "yearly"
+
+@app.post("/create-checkout-session")
+async def create_checkout_session(request: PaymentRequest):
+    try:
+        # ID dei prodotti/piani creati su Stripe
+        prices = {
+            "monthly": "price_XXXXXXXXXXXX",  # Sostituisci con l'ID del piano mensile
+            "yearly": "price_YYYYYYYYYYYY",  # Sostituisci con l'ID del piano annuale
+        }
+        if request.plan not in prices:
+            raise HTTPException(status_code=400, detail="Piano non valido")
+
+        # Creazione della sessione di pagamento
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            mode="subscription",  # Modalità abbonamento
+            line_items=[{"price": prices[request.plan], "quantity": 1}],
+            success_url="http://localhost:3000/success",  # Modifica con il tuo URL
+            cancel_url="http://localhost:3000/cancel",
+        )
+        return {"sessionId": session.id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+```
+
+---
+
+### **Passo 4: Frontend - Creare una sessione di pagamento**
+Nel tuo frontend React, utilizza il client Stripe per reindirizzare l'utente alla pagina di pagamento.
+
+#### **Esempio di implementazione in React**
+```jsx
+import React from "react";
+import { loadStripe } from "@stripe/stripe-js";
+
+const stripePromise = loadStripe("pk_test_XXXXXXXXXXXXXXXXXXXXXX"); // Chiave pubblica di Stripe
+
+function App() {
+  const handlePayment = async (plan) => {
+    try {
+      const response = await fetch("http://localhost:8000/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan }),
+      });
+
+      const data = await response.json();
+      if (data.sessionId) {
+        const stripe = await stripePromise;
+        await stripe.redirectToCheckout({ sessionId: data.sessionId });
+      } else {
+        alert("Errore durante la creazione della sessione");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Errore durante il pagamento");
+    }
+  };
+
+  return (
+    <div>
+      <button onClick={() => handlePayment("monthly")}>Abbonamento Mensile</button>
+      <button onClick={() => handlePayment("yearly")}>Abbonamento Annuale</button>
+    </div>
+  );
+}
+
+export default App;
+```
+
+---
+
+### **Passo 5: Salvare i dati dell'abbonamento nel database**
+Nel backend, puoi utilizzare i webhook di Stripe per tenere traccia dei pagamenti e aggiornare il database **MySQL**.
+
+1. **Configura un endpoint webhook**:
+   ```python
+   from fastapi import Request
+
+   @app.post("/webhook")
+   async def stripe_webhook(request: Request):
+       payload = await request.body()
+       sig_header = request.headers.get("stripe-signature")
+       endpoint_secret = "whsec_XXXXXXXXXXXXXXXXXX"  # Segreto del webhook da Stripe
+
+       try:
+           event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
+
+           # Gestisci l'evento (es. pagamento riuscito)
+           if event["type"] == "checkout.session.completed":
+               session = event["data"]["object"]
+               customer_email = session["customer_details"]["email"]
+               subscription_id = session["subscription"]
+
+               # Salva nel database
+               # Es: salva_email_subscription(customer_email, subscription_id)
+
+           return {"success": True}
+       except Exception as e:
+           raise HTTPException(status_code=400, detail=str(e))
+   ```
+2. Configura il webhook nel dashboard Stripe.
+
+---
+
+### **Passo 6: Visualizzazione dello stato dell'abbonamento**
+Puoi interrogare il database per mostrare ai tuoi utenti lo stato dell'abbonamento e, in caso di scadenza, reindirizzarli al pagamento.
+
+---
+
+### **Punti chiave**
+- **Test**: Usa le chiavi di test di Stripe per fare prove (non coinvolgono denaro reale).
+- **Sicurezza**: Proteggi la tua chiave segreta `.env` e valida i webhook.
+- **Interfaccia Utente**: Personalizza il frontend per gestire messaggi di successo/errore e pagine di conferma.
+
+Hai domande specifiche o desideri assistenza su un punto in particolare?
+
+
+
+Per implementare la gestione dell'erogazione del prodotto mensile (infoprodotto) e sincronizzarlo con il sistema di abbonamenti **Stripe**, puoi adottare una strategia ben organizzata nel database e nel flusso del tuo backend. Ecco come procedere:
+
+---
+
+### **1. Strutturare il Database**
+
+Devi creare almeno due tabelle principali per gestire gli utenti e gli abbonamenti:
+
+#### **Tabelle principali**
+1. **`users`**: Contiene i dati dell'utente.
+   ```sql
+   CREATE TABLE users (
+       id INT AUTO_INCREMENT PRIMARY KEY,
+       email VARCHAR(255) UNIQUE NOT NULL,
+       name VARCHAR(255),
+       password_hash VARCHAR(255), -- Per autenticazione
+       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+   );
+   ```
+
+2. **`subscriptions`**: Contiene lo stato dell'abbonamento.
+   ```sql
+   CREATE TABLE subscriptions (
+       id INT AUTO_INCREMENT PRIMARY KEY,
+       user_id INT NOT NULL,
+       stripe_subscription_id VARCHAR(255), -- ID Stripe del subscription
+       plan VARCHAR(50), -- "monthly" o "yearly"
+       status ENUM('active', 'canceled', 'past_due') DEFAULT 'active',
+       next_billing_date DATE, -- Data del prossimo rinnovo
+       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+       FOREIGN KEY (user_id) REFERENCES users(id)
+   );
+   ```
+
+3. **`products`**: Contiene i prodotti generati mensilmente.
+   ```sql
+   CREATE TABLE products (
+       id INT AUTO_INCREMENT PRIMARY KEY,
+       user_id INT NOT NULL,
+       delivery_date DATE, -- Data di invio del prodotto
+       content TEXT, -- Contenuto dell'infoprodotto generato
+       is_sent BOOLEAN DEFAULT FALSE, -- Stato di invio (per email)
+       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+       FOREIGN KEY (user_id) REFERENCES users(id)
+   );
+   ```
+
+---
+
+### **2. Sincronizzazione con Stripe**
+
+Utilizza i webhook di Stripe per aggiornare automaticamente lo stato dell'abbonamento.
+
+#### **Gestione webhook**
+1. Configura il webhook per gli eventi principali:
+   - **`invoice.payment_succeeded`**: Rinnovo del pagamento completato.
+   - **`invoice.payment_failed`**: Rinnovo del pagamento fallito.
+   - **`customer.subscription.deleted`**: Abbonamento cancellato.
+
+2. **Esempio di gestione nel webhook**:
+   ```python
+   @app.post("/webhook")
+   async def stripe_webhook(request: Request):
+       payload = await request.body()
+       sig_header = request.headers.get("stripe-signature")
+       endpoint_secret = "whsec_XXXXXXXXXXXXXXXXXX"
+
+       try:
+           event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
+
+           # Rinnovo avvenuto con successo
+           if event["type"] == "invoice.payment_succeeded":
+               subscription = event["data"]["object"]["subscription"]
+               next_billing_date = event["data"]["object"]["lines"]["data"][0]["period"]["end"]
+               
+               # Aggiorna la tabella subscriptions
+               await update_subscription_status(subscription, "active", next_billing_date)
+
+           # Pagamento fallito
+           elif event["type"] == "invoice.payment_failed":
+               subscription = event["data"]["object"]["subscription"]
+               await update_subscription_status(subscription, "past_due", None)
+
+           # Abbonamento cancellato
+           elif event["type"] == "customer.subscription.deleted":
+               subscription = event["data"]["object"]["id"]
+               await update_subscription_status(subscription, "canceled", None)
+
+           return {"success": True}
+       except Exception as e:
+           raise HTTPException(status_code=400, detail=str(e))
+
+   async def update_subscription_status(subscription_id, status, next_billing_date):
+       query = """
+       UPDATE subscriptions
+       SET status = :status, next_billing_date = :next_billing_date
+       WHERE stripe_subscription_id = :subscription_id
+       """
+       await database.execute(query, values={
+           "subscription_id": subscription_id,
+           "status": status,
+           "next_billing_date": next_billing_date,
+       })
+   ```
+
+---
+
+### **3. Generare e inviare i prodotti mensilmente**
+
+1. **Script per generare i prodotti ogni mese**:
+   Puoi configurare un **cron job** o un task periodico (es. con Celery) per generare l'infoprodotto e aggiornarlo nella tabella `products`.
+
+   ```python
+   from datetime import datetime
+   @app.on_event("startup")
+   @repeat_every(seconds=60 * 60 * 24)  # Esegui una volta al giorno
+   async def generate_monthly_products():
+       today = datetime.utcnow().date()
+
+       # Recupera tutti gli utenti con abbonamenti attivi
+       query = "SELECT user_id FROM subscriptions WHERE status = 'active' AND next_billing_date >= :today"
+       active_users = await database.fetch_all(query, values={"today": today})
+
+       # Genera il prodotto
+       for user in active_users:
+           content = f"Contenuto generato per il giorno {today}"  # Sostituisci con il tuo generatore
+           query = """
+           INSERT INTO products (user_id, delivery_date, content) VALUES (:user_id, :delivery_date, :content)
+           """
+           await database.execute(query, values={
+               "user_id": user["user_id"],
+               "delivery_date": today,
+               "content": content,
+           })
+   ```
+
+2. **Inviare il prodotto per email**:
+   Puoi utilizzare una libreria come **`smtplib`** o un servizio come **SendGrid** per inviare email con i contenuti generati.
+
+---
+
+### **4. Logica per fermare il servizio**
+Quando un abbonamento non è più attivo, l'utente non riceverà nuovi prodotti.
+
+1. **Verifica lo stato dell'abbonamento**:
+   Prima di generare un prodotto o inviare un'email, controlla lo stato nella tabella `subscriptions`.
+
+2. **Rimuovere accesso ai contenuti**:
+   Se l'abbonamento è **"canceled"** o **"past_due"**, non generare o inviare nuovi contenuti.
+
+---
+
+### **Flusso Completo**
+
+1. **Frontend**: L'utente acquista un abbonamento con Stripe.
+2. **Stripe Webhook**: Aggiorna lo stato dell'abbonamento nel database.
+3. **Task Periodico**: Genera prodotti per gli utenti con abbonamento attivo.
+4. **Integrazione Email**: Invia i prodotti mensilmente agli utenti.
+5. **Gestione Abbonamento**: Blocca nuovi prodotti per utenti con abbonamento scaduto.
+
+Se hai bisogno di dettagli su uno specifico punto, fammi sapere!
+
+
+L'errore indica che il modulo `@stripe/stripe-js` non è stato trovato. Probabilmente non è installato nel tuo progetto React. Per risolvere il problema, segui questi passaggi:
+
+---
+
+### **1. Installa il modulo `@stripe/stripe-js`**
+
+Esegui il comando seguente per installare il pacchetto Stripe JavaScript SDK:
+
+```bash
+npm install @stripe/stripe-js
+```
+
+Oppure, se usi Yarn:
+
+```bash
+yarn add @stripe/stripe-js
+```
+
+---
+
+### **2. Verifica il file `Stripe.js`**
+
+Assicurati che il tuo componente **`Stripe.js`** importi correttamente il modulo. Ad esempio:
+
+```javascript
+import { loadStripe } from '@stripe/stripe-js';
+
+const stripePromise = loadStripe('your-publishable-key-here');
+
+function StripeComponent() {
+    return (
+        <div>
+            {/* Usa stripePromise nel componente */}
+            <h1>Stripe Integration</h1>
+        </div>
+    );
+}
+
+export default StripeComponent;
+```
+
+---
+
+### **3. Controlla la configurazione di Webpack**
+
+Se hai già installato il modulo e continui a ricevere l'errore, potrebbe esserci un problema con la configurazione di Webpack. Esegui i seguenti comandi per cancellare la cache di Webpack e ricostruire il progetto:
+
+```bash
+rm -rf node_modules/.cache
+npm start
+```
+
+---
+
+### **4. Controlla il file `package.json`**
+
+Verifica che il pacchetto sia elencato tra le dipendenze. Cerca la voce `@stripe/stripe-js` nel file `package.json`:
+
+```json
+"dependencies": {
+  "@stripe/stripe-js": "^1.0.0", // Assicurati che sia presente
+  "react": "^18.0.0",
+  "react-dom": "^18.0.0",
+  ...
+}
+```
+
+Se non è presente, reinstallalo con il comando indicato sopra.
+
+---
+
+### **5. Rimuovi e reinstalla i moduli**
+
+Se l'errore persiste, rimuovi completamente la directory `node_modules` e reinstalla tutte le dipendenze:
+
+```bash
+rm -rf node_modules package-lock.json
+npm install
+npm start
+```
+
+---
+
+
+
+
+### **6. Debug del percorso**
+
+Verifica che il file **Stripe.js** si trovi nella directory corretta (es.: `src/components/Stripe.js`) e che non ci siano errori di percorso relativi.
+
+---
+
+Seguendo questi passaggi, l'errore dovrebbe essere risolto. Se incontri ancora problemi, condividi il contenuto del file `Stripe.js` e ti aiuterò a correggerlo!
+
+
+
+Un errore **500 Internal Server Error** indica che qualcosa è andato storto nel backend durante l'elaborazione della richiesta al percorso `/create-checkout-session`. Per risolvere il problema:
+
+---
+
+### **1. Controlla il Log del Backend**
+
+Guarda i dettagli dell'errore nel log del server FastAPI. Gli errori 500 sono spesso causati da:
+
+- Problemi con la configurazione di Stripe.
+- Mancata corrispondenza delle chiavi API.
+- Errori nel codice del backend.
+
+Se il log non è chiaro, aggiungi un middleware di logging in FastAPI per catturare gli errori:
+
+```python
+from fastapi.middleware.cors import CORSMiddleware
+import logging
+
+logging.basicConfig(level=logging.INFO)
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logger = logging.getLogger("myapp")
+    try:
+        response = await call_next(request)
+    except Exception as e:
+        logger.error(f"Error processing request: {e}")
+        raise
+    return response
+```
+
+---
+
+### **2. Controlla il Codice del Percorso `/create-checkout-session`**
+
+Ecco un esempio corretto di endpoint per creare una sessione di checkout con Stripe. Assicurati che il tuo codice sia simile a questo:
+
+#### **Esempio di Codice**
+
+```python
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse
+import stripe
+
+app = FastAPI()
+
+# Configura la chiave segreta di Stripe
+stripe.api_key = "sk_test_XXXXXXXXXXXXXXXXXXXXXXXX"
+
+@app.post("/create-checkout-session")
+async def create_checkout_session():
+    try:
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            line_items=[
+                {
+                    "price_data": {
+                        "currency": "usd",
+                        "product_data": {
+                            "name": "Abbonamento Mensile",
+                        },
+                        "unit_amount": 1000,  # Prezzo in centesimi (es.: $10.00)
+                    },
+                    "quantity": 1,
+                },
+            ],
+            mode="subscription",  # Può essere "payment" o "subscription"
+            success_url="http://localhost:3000/success?session_id={CHECKOUT_SESSION_ID}",
+            cancel_url="http://localhost:3000/cancel",
+        )
+        return {"id": session.id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Errore: {str(e)}")
+```
+
+---
+
+### **3. Problemi Comuni**
+
+#### **a. Chiave Stripe Mancante o Errata**
+Verifica che la chiave segreta di Stripe (`sk_test_XXXXXXXX`) sia corretta e caricata correttamente.
+
+Se utilizzi variabili d'ambiente, controlla che siano configurate:
+
+```python
+import os
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+```
+
+#### **b. Prezzi o Prodotti Mancanti su Stripe**
+Se stai usando `price_data`, assicurati che il prezzo e il prodotto siano corretti. Per un prodotto esistente, usa il relativo ID prezzo:
+
+```python
+line_items=[
+    {
+        "price": "price_XXXXXXXXXXXXX",  # Usa l'ID del prezzo creato su Stripe
+        "quantity": 1,
+    },
+],
+```
+
+#### **c. Problemi con URL di Successo/Annullamento**
+Verifica che i valori `success_url` e `cancel_url` siano validi. Devono essere URL assoluti e raggiungibili dal frontend.
+
+---
+
+### **4. Debug con Test Stripe**
+
+Stripe fornisce un ottimo strumento per il debug. Puoi utilizzare i log della dashboard di Stripe per vedere gli errori e i dettagli delle richieste:
+
+1. Vai su [Dashboard Stripe](https://dashboard.stripe.com/test/logs).
+2. Cerca la tua richiesta e guarda il dettaglio dell'errore.
+
+---
+
+### **5. Testa l'Endpoint Localmente**
+
+Usa un client come **Postman** o **cURL** per inviare una richiesta all'endpoint `/create-checkout-session` e verificare la risposta:
+
+#### **Esempio con cURL**
+```bash
+curl -X POST http://127.0.0.1:8000/create-checkout-session
+```
+
+La risposta dovrebbe essere simile a:
+```json
+{
+    "id": "cs_test_XXXXXXXXXXXXXXXXXXXXXXXX"
+}
+```
+
+---
+
+Se il problema persiste, condividi il log dell'errore completo o il codice del tuo endpoint `/create-checkout-session`, così posso aiutarti a individuare l'origine dell'errore!
+
+
+Il codice che hai condiviso sembra corretto a prima vista, ma l'errore **500 Internal Server Error** indica che qualcosa va storto durante la chiamata a `stripe.checkout.Session.create`. Vediamo come risolvere il problema passo per passo:
+
+---
+
+### **1. Problemi Comuni**
+
+#### **a. ID del Prezzo Errato**
+Gli ID che hai utilizzato (`prod_RMogCjpFQXArX7`, `prod_RV8YtdexraOxCL`) sembrano essere ID di prodotti e non ID di prezzi. In Stripe, gli abbonamenti devono fare riferimento a un ID prezzo (`price_XXXXXX`), non al prodotto direttamente.
+
+Verifica che gli ID siano corretti:
+
+1. Vai sulla [Dashboard di Stripe](https://dashboard.stripe.com/).
+2. Vai su **Prodotti > Prezzi** e copia l'ID del prezzo (es. `price_1NXXXXX`).
+3. Aggiorna il dizionario `prices` nel codice con gli ID dei prezzi corretti:
+
+```python
+prices = {
+    "monthly": "price_1NXXXXXXX",  # ID del piano mensile
+    "yearly": "price_1NYYYYYYY",  # ID del piano annuale
+}
+```
+
+---
+
+#### **b. Mancanza della Chiave API**
+Assicurati che la chiave segreta di Stripe sia caricata correttamente. Nel tuo codice, puoi usare un controllo semplice:
+
+```python
+import os
+
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+if not stripe.api_key:
+    raise RuntimeError("La chiave segreta di Stripe non è stata configurata.")
+```
+
+Se non hai configurato correttamente la variabile d'ambiente, puoi temporaneamente usare la chiave direttamente (non consigliato in produzione):
+
+```python
+stripe.api_key = "sk_test_XXXXXXXXXXXX"
+```
+
+---
+
+### **2. Log di Debug**
+
+Aggiorna il tuo codice per loggare i dettagli dell'errore:
+
+```python
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("stripe")
+
+@app.post("/create-checkout-session")
+async def create_checkout_session(request: PaymentRequest):
+    try:
+        prices = {
+            "monthly": "price_1NXXXXXXX",  # ID del piano mensile
+            "yearly": "price_1NYYYYYYY",  # ID del piano annuale
+        }
+        if request.plan not in prices:
+            raise HTTPException(status_code=400, detail="Piano non valido")
+
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            mode="subscription",
+            line_items=[{"price": prices[request.plan], "quantity": 1}],
+            success_url="http://localhost:3000/success",
+            cancel_url="http://localhost:3000/cancel",
+        )
+        return {"sessionId": session.id}
+    except Exception as e:
+        logger.error(f"Errore durante la creazione della sessione Stripe: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+```
+
+---
+
+### **3. Debug Locale con cURL**
+
+Puoi verificare l'endpoint `/create-checkout-session` con una richiesta diretta:
+
+```bash
+curl -X POST http://127.0.0.1:8000/create-checkout-session \
+-H "Content-Type: application/json" \
+-d '{"plan": "monthly"}'
+```
+
+La risposta dovrebbe restituire qualcosa come:
+
+```json
+{
+    "sessionId": "cs_test_XXXXXXXXXXXXXX"
+}
+```
+
+Se il problema persiste, controlla:
+
+1. **Dettagli del Log**: Verifica cosa restituisce `logger.error`.
+2. **Dashboard di Stripe**: Vai su [Log Stripe](https://dashboard.stripe.com/test/logs) per visualizzare l'errore associato alla tua richiesta.
+
+---
+
+### **4. Problemi con il Success/Cancel URL**
+
+Gli URL che hai configurato (`http://localhost:3000/success` e `http://localhost:3000/cancel`) devono essere accessibili pubblicamente quando testati in ambiente reale. Per un ambiente locale, puoi usare [ngrok](https://ngrok.com/) per esporre il tuo server:
+
+```bash
+ngrok http 3000
+```
+
+Aggiorna i tuoi URL con l'indirizzo fornito da ngrok:
+
+```python
+success_url="https://<ngrok-url>/success",
+cancel_url="https://<ngrok-url>/cancel",
+```
+
+---
+
+Se il problema non si risolve, condividi ulteriori dettagli sul log o sull'errore che ottieni, e ti aiuterò a identificare la causa.
