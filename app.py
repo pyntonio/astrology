@@ -469,6 +469,11 @@ def get_monthly_horoscopes(db: Session = Depends(get_db), current_user: str = De
 
 
 # Stripe payments https://chatgpt.com/share/674f4d56-94a8-8011-bccf-ab9d0195fe63
+# TO-DO
+# 1. gestire webhook per ritorno dati su DB (necessaria macchina esposta a internet o ngrok)
+# 2. Creare pagine success o denied su react app dummy
+# 3. logica di automatismo per generazione mensile degli oroscopi tramite script cronjobs?
+#
 
 # Modello per ricevere i dettagli del piano
 class PaymentRequest(BaseModel):
