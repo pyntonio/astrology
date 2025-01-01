@@ -479,7 +479,7 @@ async def create_checkout_session(request: PaymentRequest):
     try:
         # ID dei prodotti/piani creati su Stripe
         prices = {
-            "monthly": "price_1QU52sEb1r0toAUQ4jlWSmBy",  # Sostituisci con l'ID del piano mensile
+            "monthly": "price_1QU52sEb1r0toAUQ4jlWSmBy",  # Sostituisci con l'ID del piano mensile (id di prezzo non di prodotto)
             "yearly": "price_1Qc8GuEb1r0toAUQbnNzRN27",  # Sostituisci con l'ID del piano annuale
         }
         if request.plan not in prices:
