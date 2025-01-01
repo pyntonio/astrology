@@ -29,7 +29,9 @@ from auth.dependencies import get_current_user
 from pydantic import BaseModel
 from oroscope.natale_card import calcola_carta_natale
 import models
+import stripe
 
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
 Base.metadata.create_all(bind=engine)
 
@@ -466,3 +468,54 @@ def get_monthly_horoscopes(db: Session = Depends(get_db), current_user: str = De
 
 
 
+# Stripe payments
+
+# Modello per ricevere i dettagli del piano
+class PaymentRequest(BaseModel):
+    plan: str  # "monthly" o "yearly"
+
+@app.post("/create-checkout-session")
+async def create_checkout_session(request: PaymentRequest):
+    try:
+        # ID dei prodotti/piani creati su Stripe
+        prices = {
+            "monthly": "price_1QU52sEb1r0toAUQ4jlWSmBy",  # Sostituisci con l'ID del piano mensile
+            "yearly": "price_1Qc8GuEb1r0toAUQbnNzRN27",  # Sostituisci con l'ID del piano annuale
+        }
+        if request.plan not in prices:
+            raise HTTPException(status_code=400, detail="Piano non valido")
+
+        # Creazione della sessione di pagamento
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            mode="subscription",  # Modalità abbonamento
+            line_items=[{"price": prices[request.plan], "quantity": 1}],
+            success_url="http://localhost:3000/success",  # Modifica con il tuo URL
+            cancel_url="http://localhost:3000/cancel",
+        )
+        return {"sessionId": session.id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+
+@app.post("/webhook")
+async def stripe_webhook(request: Request):
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature")
+    endpoint_secret = "whsec_XXXXXXXXXXXXXXXXXX"  # Segreto del webhook da Stripe
+
+    try:
+        event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
+
+        # Gestisci l'evento (es. pagamento riuscito)
+        if event["type"] == "checkout.session.completed":
+            session = event["data"]["object"]
+            customer_email = session["customer_details"]["email"]
+            subscription_id = session["subscription"]
+
+            # Salva nel database
+            # Es: salva_email_subscription(customer_email, subscription_id)
+
+        return {"success": True}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))

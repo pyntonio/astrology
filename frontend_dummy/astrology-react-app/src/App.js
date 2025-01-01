@@ -8,6 +8,7 @@ import ChangePassword from './components/ChangePassword';
 import SecureData from './components/SecureData';
 import Oroscopo from './components/Oroscopo';
 import Register from './components/Register'; // Assicurati che il percorso del file sia corretto
+import Stripe from './components/Stripe';
 import './App.css';
 
 const App = () => {
@@ -22,6 +23,7 @@ const App = () => {
           <Route path="/change-password" element={<ChangePassword />} />
           <Route path="/secure-data" element={<SecureData />} />
           <Route path="/oroscopo" element={<Oroscopo />} />
+          <Route path="/stripe" element={<Stripe />} />
         </Routes>
       </div>
     </Router>
