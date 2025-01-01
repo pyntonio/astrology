@@ -497,7 +497,8 @@ async def create_checkout_session(request: PaymentRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
-
+# Weeb hook di ritorno da skype per fare in modo di inserire su DB il nuovo prodotto venduto e così gestire gli user e abbonamenti mensili in automatico
+# Necessario avere un dominio esposto a internet per comunicare con il weebhook di stripe https://dashboard.stripe.com/test/workbench/webhooks nuovo weebhook-->Checkout-->checkout.session.async_payment_succeeded
 @app.post("/webhook")
 async def stripe_webhook(request: Request):
     payload = await request.body()
